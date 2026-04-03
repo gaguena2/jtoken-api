@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: jtoken-api
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
