@@ -1,27 +1,48 @@
 package com.gaguena.jtokenapi.core.token;
 
-import org.springframework.stereotype.Service;
-
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.gaguena.jtokenapi.core.user.UserEntity;
+import com.gaguena.jtokenapi.core.user.UserRepository;
 
 @Service
 public class TokenService {
 
-    private final TokenRepository tokenRepository;
+    @Autowired
+    private TokenRepository tokenRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-    public TokenService(TokenRepository tokenRepository) {
-        this.tokenRepository = tokenRepository;
-    }
-
+    @Value("${token.expiration.minutes:60}") // default 1 hora
+    private long tokenExpirationMinutes;
     /**
      * Cria e salva um token no Mongo
      */
     public TokenEntity createToken(TokenData data) {
-        
+        var tokenValue = UUID.randomUUID().toString();
 
-        return null;
+        // regra de expiração definida aqui, não no DTO
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(tokenExpirationMinutes, ChronoUnit.MINUTES);// token válido por
+
+
+        TokenEntity tokenEntity = TokenEntity.builder()
+                .userId(data.userId())   // id do usuário
+                .token(tokenValue)
+                .type(TokenType.BEARER)
+                .revoked(Boolean.FALSE)
+                .createdAt(now)
+                .expiresAt(expiresAt)
+                .build();
+
+        return tokenRepository.save(tokenEntity);
     }
 
     /**
@@ -40,5 +61,11 @@ public class TokenService {
             token.setRevoked(true);
             tokenRepository.save(token);
         });
+    }
+    
+    public Optional<UserEntity> getUserFromToken(String token) {
+        return tokenRepository.findByToken(token)
+                .filter(t -> !t.isRevoked() && t.getExpiresAt().isAfter(Instant.now()))
+                .flatMap(t -> userRepository.findById(t.getUserId()));
     }
 }

@@ -22,7 +22,7 @@ public class TokenEntity {
     @Indexed(unique = true)
     private String token;
 
-    private String type;
+    private TokenType type;
 
     private boolean revoked;
 
